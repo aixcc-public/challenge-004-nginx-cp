@@ -1,0 +1,55 @@
+diff --git a/src/mail/ngx_mail_pop3_handler.c b/src/mail/ngx_mail_pop3_handler.c
+index 3f4a214..39ce7e2 100644
+--- a/src/mail/ngx_mail_pop3_handler.c
++++ b/src/mail/ngx_mail_pop3_handler.c
+@@ -348,50 +348,6 @@ ngx_mail_pop3_user(ngx_mail_session_t *s, ngx_connection_t *c)
+ static ngx_int_t
+ ngx_mail_pop3_pass(ngx_mail_session_t *s, ngx_connection_t *c)
+ {
+-    ngx_str_t       *arg;
+-    ngx_auth_log_t **auth_logs = &c->auth_log;
+-    ngx_auth_log_t  *new_auth_log;
+-
+-    if (s->args.nelts != 1) {
+-        return NGX_MAIL_PARSE_INVALID_COMMAND;
+-    }
+-
+-    arg = s->args.elts;
+-    s->passwd.len = arg[0].len;
+-    s->passwd.data = ngx_pnalloc(c->pool, s->passwd.len);
+-    if (s->passwd.data == NULL) {
+-        return NGX_ERROR;
+-    }
+-
+-    ngx_memcpy(s->passwd.data, arg[0].data, s->passwd.len);
+-
+-#if (NGX_DEBUG_MAIL_PASSWD)
+-    ngx_log_debug1(NGX_LOG_DEBUG_MAIL, c->log, 0,
+-                   "pop3 passwd: \"%V\"", &s->passwd);
+-#endif
+-
+-    if ((*auth_logs) == NULL) {
+-        return NGX_DONE;
+-    }
+-
+-    for ( ;(*auth_logs) && (*auth_logs)->next;auth_logs++) {
+-        (*auth_logs) = (*auth_logs)->next;
+-    }
+-
+-    new_auth_log = ngx_pnalloc(c->pool, sizeof(ngx_auth_log_t));
+-    if (new_auth_log != NULL) {
+-        for (size_t i = 0; i < s->login.len; i++) {
+-            new_auth_log->username.data[i] = s->login.data[i];
+-        }
+-        new_auth_log->username.len = s->login.len;
+-    }
+-
+-    if ((*auth_logs)) {
+-        (*auth_logs)->next = new_auth_log;
+-    } else {
+-        *auth_logs = new_auth_log;
+-    }
+-
+     return NGX_DONE;
+ }
+ 

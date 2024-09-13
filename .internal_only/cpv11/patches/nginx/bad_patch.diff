@@ -1,0 +1,41 @@
+diff --git a/src/core/ngx_cycle.c b/src/core/ngx_cycle.c
+index d56a9be..c81ebbd 100644
+--- a/src/core/ngx_cycle.c
++++ b/src/core/ngx_cycle.c
+@@ -455,10 +455,6 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
+ 
+     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+ 
+-    if (!ccf->remote_admin) {
+-        ngx_free(cycle->host_specs);
+-    }
+-
+     if (ngx_test_config) {
+ 
+         if (ngx_create_pidfile(&ccf->pid, log) != NGX_OK) {
+diff --git a/src/http/ngx_http_variables.c b/src/http/ngx_http_variables.c
+index b824058..ce9459a 100644
+--- a/src/http/ngx_http_variables.c
++++ b/src/http/ngx_http_variables.c
+@@ -2858,20 +2858,5 @@ ngx_http_get_last_ip_variable(ngx_http_request_t *r,
+ static ngx_int_t ngx_http_get_host_specs(ngx_http_request_t *r,
+     ngx_http_variable_value_t *v, uintptr_t data)
+ {
+-    u_char *temp;
+-
+-    v->data = ngx_pnalloc(r->pool, NGX_MAX_HOST_SPECS_LINE * 3);
+-    if (v->data == NULL) {
+-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+-    }
+-    ngx_memzero(v->data, NGX_MAX_HOST_SPECS_LINE * 3);
+-
+-    temp = v->data;
+-    v->data = ngx_sprintf(v->data, "%s", r->cycle->host_specs->host_cpu->data);
+-    v->data = ngx_sprintf(v->data, "%s", r->cycle->host_specs->host_mem->data);
+-    v->data = ngx_sprintf(v->data, "%s", r->cycle->host_specs->host_os->data);
+-    v->len = v->data - temp;
+-    v->data = temp;
+-
+-    return NGX_OK;
++    return NGX_ERROR;
+ }

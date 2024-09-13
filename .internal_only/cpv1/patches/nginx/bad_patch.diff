@@ -1,0 +1,116 @@
+diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
+index e6e6a34..f5b04a2 100644
+--- a/src/http/ngx_http_request.c
++++ b/src/http/ngx_http_request.c
+@@ -4057,110 +4057,7 @@ ngx_http_process_prefer(ngx_http_request_t *r, ngx_table_elt_t *h,
+ static ngx_int_t
+ ngx_http_validate_from(ngx_str_t *from, ngx_pool_t *pool, ngx_uint_t alloc)
+ {
+-    u_char  *f, *u, ch;
+-    size_t   i;
+-
+-    enum {
+-        sw_begin = 0,
+-        sw_username,
+-        sw_username_dot,
+-        sw_domain,
+-        sw_tld
+-    } state;
+-
+-    f = from->data;
+-
+-    state = sw_begin;
+-
+-    if (alloc) {
+-        u = ngx_palloc(pool, from->len);
+-
+-        if (u == NULL) {
+-            return NGX_ERROR;
+-        }
+-    } else {
+-        u = from->data;
+-    }
+-
+-    for (i = 0; i < from->len; i++) {
+-        ch = f[i];
+-
+-        switch (state) {
+-
+-        case sw_begin:
+-            if (isalnum(ch) || ch == '-' || ch == '_') {
+-                state = sw_username;
+-            } else if (ch == '.') {
+-                state = sw_username_dot;
+-            } else {
+-                return NGX_DECLINED;
+-            }
+-            *u++ = ch;
+-            break;
+-
+-        case sw_username_dot:
+-            if (isalnum(ch) || ch == '-' || ch == '_') {
+-                *u++ = ch;
+-                state = sw_username;
+-            } else if (ch == '.') {
+-                state = sw_username_dot;
+-                u -= 2;
+-                for ( ;; ) {
+-                    if (*u == '.') {
+-                        u++;
+-                        break;
+-                    }
+-
+-                    u--;
+-                }
+-            } else {
+-                return NGX_DECLINED;
+-            }
+-            break;
+-
+-        case sw_username:
+-            if (ch == '@') {
+-                state = sw_domain;
+-            } else if (ch == '.') {
+-                state = sw_username_dot;
+-            } else if (!isalnum(ch) && ch != '-' && ch != '_' && ch != '+') {
+-                return NGX_DECLINED;
+-            }
+-            *u++ = ch;
+-            break;
+-
+-        case sw_domain:
+-            if (ch == '.') {
+-                state = sw_tld;
+-            } else if (!isalnum(ch) && ch != '-') {
+-                return NGX_DECLINED;
+-            }
+-            *u++ = ch;
+-            break;
+-
+-        case sw_tld:
+-            if (!isalpha(ch)) {
+-                return NGX_DECLINED;
+-            }
+-            *u++ = ch;
+-            break;
+-
+-        default:
+-
+-            return NGX_DECLINED;
+-        }
+-    }
+-
+-    if (state == sw_tld) {
+-        *u = '\0';
+-
+-        if (alloc) {
+-            from->data = u;
+-        }
+-        return NGX_OK;
+-    } else {
+-        return NGX_DECLINED;
+-    }
++    return NGX_DECLINED;
+ }
+ 
+ static ngx_int_t

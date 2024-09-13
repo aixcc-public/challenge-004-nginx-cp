@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# This performs the CP-specific PoV harness. It may be replaced with a script
+# or binary for a different interpreter. The name MUST NOT change.
+
+set -e
+set -o pipefail
+
+warn() {
+    echo "$*" >&2
+}
+
+die() {
+    warn "$*"
+    exit 1
+}
+
+BLOB_FILE=${1:-}
+HARNESS_FILE=${OUT}/${2:-}
+shift
+shift
+
+[[ -f "${BLOB_FILE}" ]] || die "Invalid input, missing blob file: $BLOB_FILE"
+[[ -f "${HARNESS_FILE}" && -x "${HARNESS_FILE}" ]] || die "Invalid input, missing harness file: $HARNESS_FILE"
+
+: "${ASAN_OPTIONS:=detect_leaks=0}"
+export ASAN_OPTIONS
+
+: "${FUZZER_CMD_OPTS:=-runs=100 -timeout=30}"
+
+## Set up the needed folders and html file
+mkdir -p ${OUT}/html
+mkdir -p ${OUT}/logs
+cp ${SRC}/nginx/docs/html/index.html ${OUT}/html/index.html
+
+pushd ${OUT} > /dev/null
+
+exit_code=0
+${HARNESS_FILE} ${FUZZER_CMD_OPTS} ${BLOB_FILE} || exit_code=$?
+echo "libfuzzer exit=${exit_code}"
+
+if [ $exit_code -eq 77 ]; then # libfuzzer error
+    die "Libfuzzer error"
+elif [ $exit_code -eq 70 ]; then # timeout
+  die "Libfuzzer timeout"
+fi
+
+exit 0

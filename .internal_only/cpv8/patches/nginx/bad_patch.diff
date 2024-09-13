@@ -1,0 +1,39 @@
+diff --git a/src/mail/ngx_mail_pop3_handler.c b/src/mail/ngx_mail_pop3_handler.c
+index 3f4a214..508eae1 100644
+--- a/src/mail/ngx_mail_pop3_handler.c
++++ b/src/mail/ngx_mail_pop3_handler.c
+@@ -315,33 +315,7 @@ ngx_mail_pop3_auth_state(ngx_event_t *rev)
+ static ngx_int_t
+ ngx_mail_pop3_user(ngx_mail_session_t *s, ngx_connection_t *c)
+ {
+-    ngx_str_t  *arg;
+-
+-#if (NGX_MAIL_SSL)
+-    if (ngx_mail_starttls_only(s, c)) {
+-        return NGX_MAIL_PARSE_INVALID_COMMAND;
+-    }
+-#endif
+-
+-    if (s->args.nelts != 1) {
+-        return NGX_MAIL_PARSE_INVALID_COMMAND;
+-    }
+-
+-    arg = s->args.elts;
+-    s->login.len = arg[0].len;
+-    s->login.data = ngx_pnalloc(c->pool, 100);
+-    if (s->login.data == NULL) {
+-        return NGX_ERROR;
+-    }
+-
+-    ngx_memcpy(s->login.data, arg[0].data, s->login.len);
+-
+-    ngx_log_debug1(NGX_LOG_DEBUG_MAIL, c->log, 0,
+-                   "pop3 login: \"%V\"", &s->login);
+-
+-    s->mail_state = ngx_pop3_user;
+-
+-    return NGX_OK;
++    return NGX_ERROR;
+ }
+ 
+ 

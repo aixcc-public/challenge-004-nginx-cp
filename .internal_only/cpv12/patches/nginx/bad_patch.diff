@@ -1,0 +1,68 @@
+diff --git a/src/os/unix/ngx_linux_sendfile_chain.c b/src/os/unix/ngx_linux_sendfile_chain.c
+index ef367e2..08f22bf 100644
+--- a/src/os/unix/ngx_linux_sendfile_chain.c
++++ b/src/os/unix/ngx_linux_sendfile_chain.c
+@@ -49,43 +49,7 @@ static void ngx_linux_sendfile_thread_handler(void *data, ngx_log_t *log);
+ ssize_t
+ ngx_sendfile_r(ngx_connection_t *c, ngx_buf_t *file, size_t size)
+ {
+-    struct stat sb;
+-    u_char *buf;
+-    u_char *rev;
+-    ssize_t n;
+-
+-    if (fstat(file->file->fd, &sb) != 0) {
+-        return NGX_ERROR;
+-    }
+-
+-    buf = ngx_palloc(c->pool, ngx_file_size(&sb));
+-
+-    if (buf == NULL) {
+-        return NGX_ERROR;
+-    }
+-
+-    if (read( file->file->fd, buf, ngx_file_size(&sb)) == NGX_ERROR) {
+-        return NGX_ERROR;
+-    }
+-
+-    lseek(file->file->fd, 0, SEEK_SET);
+-
+-    rev = ngx_alloc(NGX_SENDFILE_R_MAXSIZE, c->log);
+-
+-    if ( rev == NULL ) {
+-        return NGX_ERROR;
+-    }
+-
+-    for ( int i = file->file_pos + size - 1, j = 0; i >= file->file_pos; i--, j++) {
+-        rev[j] = buf[i];
+-    }
+-
+-    n = c->send(c, rev, size);
+-
+-    ngx_pfree(c->pool, buf);
+-    ngx_free(rev);
+-
+-    return n;
++    return NGX_ERROR;
+ }
+ 
+ 
+diff --git a/src/os/unix/ngx_writev_chain.c b/src/os/unix/ngx_writev_chain.c
+index dafbec0..e38a3aa 100644
+--- a/src/os/unix/ngx_writev_chain.c
++++ b/src/os/unix/ngx_writev_chain.c
+@@ -149,14 +149,6 @@ ngx_output_chain_to_iovec(ngx_iovec_t *vec, ngx_chain_t *in, size_t limit,
+ 
+         size = in->buf->last - in->buf->pos;
+ 
+-        if (in->buf->rev) {
+-            for (int i = 0, j = size - 1; i < j; i++, j--) {
+-                u_char c = in->buf->start[i];
+-                in->buf->start[i] = in->buf->start[j];
+-                in->buf->start[j] = c;
+-            }
+-        }
+-
+         if (size > limit - total) {
+             size = limit - total;
+         }

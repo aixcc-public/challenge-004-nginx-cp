@@ -1,0 +1,43 @@
+ngx_all_objs_harness=`echo $ngx_all_srcs \
+    | sed -e "s#\([^ ]*\.\)cc#$NGX_OBJS\/\1$ngx_objext#g" \
+          -e "s#\([^ ]*\.\)c#$NGX_OBJS\/\1$ngx_objext#g"`
+
+ngx_deps_harness=`echo $ngx_all_objs_harness $ngx_modules_obj $ngx_res $LINK_DEPS \
+    | sed -e "s/  *\([^ ][^ ]*\)/$ngx_regex_cont\1/g" \
+          -e "s/\//$ngx_regex_dirsep/g"`
+
+ngx_objs=`echo $ngx_all_objs $ngx_modules_obj \
+    | sed -e "s/  *\([^ ][^ ]*\)/$ngx_long_regex_cont\1/g" \
+          -e "s/\//$ngx_regex_dirsep/g"`
+
+cat << END                                                    >> $NGX_MAKEFILE
+
+harnesses: objs/smtp_harness objs/mail_request_harness objs/pov_harness
+
+objs/smtp_harness: $ngx_deps_harness
+	 \$(CXX) \$(CXXFLAGS) -DNDEBUG src/harnesses/smtp_harness.cc \
+	 -o objs/smtp_harness \
+	 \$(CORE_INCS) \$(HTTP_INCS) \
+	 -I \$(SRC)/ -I src/mail \
+	 $ngx_binexit$ngx_long_cont$ngx_objs \
+   	 \$(LIB_FUZZING_ENGINE) $ngx_libs$ngx_link$ngx_main_link -lcrypt
+
+objs/mail_request_harness: $ngx_deps_harness
+	 \$(CXX) \$(CXXFLAGS) -DNDEBUG src/harnesses/mail_request_harness.cc \
+	 -o objs/mail_request_harness \
+	 \$(CORE_INCS) \$(HTTP_INCS) \
+	 -I \$(SRC)/ -I src/mail \
+	 $ngx_binexit$ngx_long_cont$ngx_objs \
+   	 \$(LIB_FUZZING_ENGINE) $ngx_libs$ngx_link$ngx_main_link -lcrypt
+
+objs/pov_harness: $ngx_deps_harness
+	 \$(CXX) \$(CXXFLAGS) -DNDEBUG src/harnesses/pov_harness.cc \
+	 -o objs/pov_harness \
+	 \$(CORE_INCS) \$(HTTP_INCS) \
+	 -I \$(SRC)/ \
+	 $ngx_binexit$ngx_long_cont$ngx_objs \
+   	 \$(LIB_FUZZING_ENGINE) $ngx_libs$ngx_link$ngx_main_link -lcrypt
+
+$ngx_long_end
+
+END

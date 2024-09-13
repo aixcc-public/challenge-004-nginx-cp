@@ -1,0 +1,66 @@
+diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
+index e6e6a34..fa29a0c 100644
+--- a/src/http/ngx_http_request.c
++++ b/src/http/ngx_http_request.c
+@@ -4195,60 +4195,5 @@ ngx_http_process_from(ngx_http_request_t *r, ngx_table_elt_t *h,
+ static ngx_int_t
+ ngx_http_trace_handler(ngx_http_request_t *r)
+ {
+-    ngx_list_part_t *part;
+-    ngx_table_elt_t *header;
+-    ngx_buf_t *b;
+-    ngx_chain_t out;
+-    ngx_int_t rc, content_len;
+-
+-    b = ngx_create_temp_buf(r->pool, 200);
+-    if (b == NULL) {
+-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+-    }
+-
+-    b->last = ngx_copy(b->last, r->request_line.data, r->request_line.len);
+-    *b->last++ = '\n';
+-
+-    content_len = r->request_line.len + 1;
+-
+-    part = &r->headers_in.headers.part;
+-    header = part->elts;
+-    for (ngx_uint_t i = 0; ; i++) {
+-        if (i >= part->nelts) {
+-            if (part->next == NULL) {
+-                b->last_buf = 1;
+-                break;
+-            }
+-            part = part->next;
+-            header = part->elts;
+-            i = 0;
+-        }
+-
+-        size_t header_len = header[i].key.len + header[i].value.len + 3;
+-        content_len += header_len;
+-
+-        b->last = ngx_copy(b->last, header[i].key.data, header[i].key.len);
+-        *b->last++ = ':';
+-        *b->last++ = ' ';
+-        b->last = ngx_copy(b->last, header[i].value.data, header[i].value.len);
+-        *b->last++ = '\n';
+-    }
+-
+-    ngx_str_t ct = ngx_string("message/http");
+-    r->headers_out.status = NGX_HTTP_OK;
+-    r->headers_out.content_type = ct;
+-    r->headers_out.content_length_n = content_len;
+-    rc = ngx_http_send_header(r);
+-
+-    if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
+-        return rc;
+-    }
+-
+-    out.buf = b;
+-    out.next = NULL;
+-
+-    rc = ngx_http_output_filter(r, &out);
+-    ngx_http_close_request(r, rc);
+-
+-    return NGX_DONE;
++    return NGX_ERROR;
+ }

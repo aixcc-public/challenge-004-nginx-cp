@@ -1,0 +1,189 @@
+#!/bin/bash
+
+# This performs the CP-specific build. It may be replaced with a script
+# or binary for a different interpreter. The name MUST NOT change.
+
+set -e
+set -o pipefail
+
+warn() {
+    echo "$*" >&2
+}
+
+die() {
+    warn "$*"
+    exit 1
+}
+
+# set parallel value
+: "${NPROC_VAL:=$(nproc)}"
+
+HARNESS_BLD_DIR=${SRC}/harnesses/bld
+
+# clean up previous build artifacts
+rm -f ${OUT}/*_harness
+rm -f ${SRC}/nginx/objs/nginx
+rm -rf ${HARNESS_BLD_DIR}
+mkdir -p ${HARNESS_BLD_DIR}
+
+# save default env vars
+_save_CFLAGS=${CFLAGS}
+_save_CXXFLAGS=${CXXFLAGS}
+_save_LDFLAGS=${LDFLAGS}
+_save_LIBS=${LIBS}
+
+: "${CP_HARNESS_CFLAGS:="\
+    -O1 \
+    -fno-omit-frame-pointer \
+    -gline-tables-only \
+    -Wno-error=enum-constexpr-conversion \
+    -Wno-error=incompatible-function-pointer-types \
+    -Wno-error=int-conversion \
+    -Wno-error=deprecated-declarations \
+    -Wno-error=implicit-function-declaration \
+    -Wno-error=implicit-int \
+    -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
+    -DNGX_DEBUG_PALLOC=1 \
+    -fsanitize=address \
+"}"
+: "${CP_HARNESS_CXXFLAGS:="\
+    -O1 \
+    -fno-omit-frame-pointer \
+    -gline-tables-only \
+    -Wno-error=enum-constexpr-conversion \
+    -Wno-error=incompatible-function-pointer-types \
+    -Wno-error=int-conversion \
+    -Wno-error=deprecated-declarations \
+    -Wno-error=implicit-function-declaration \
+    -Wno-error=implicit-int \
+    -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
+    -fsanitize=address \
+    -fsanitize-address-use-after-scope \
+    -fsanitize=fuzzer \
+    -stdlib=libc++ \
+"}"
+: "${CP_HARNESS_LDFLAGS:="-Wl,--wrap=writev \
+    -Wl,--wrap=open \
+    -Wl,--wrap=getsockopt \
+    -Wl,--wrap=select \
+    -Wl,--wrap=recv \
+    -Wl,--wrap=read \
+    -Wl,--wrap=send \
+    -Wl,--wrap=epoll_create \
+    -Wl,--wrap=epoll_create1 \
+    -Wl,--wrap=epoll_wait \
+    -Wl,--wrap=epoll_ctl \
+    -Wl,--wrap=close \
+    -Wl,--wrap=ioctl \
+    -Wl,--wrap=listen \
+    -Wl,--wrap=accept \
+    -Wl,--wrap=accept4 \
+    -Wl,--wrap=setsockopt \
+    -Wl,--wrap=bind \
+    -Wl,--wrap=shutdown \
+    -Wl,--wrap=connect \
+    -Wl,--wrap=getpwnam \
+    -Wl,--wrap=getgrnam \
+    -Wl,--wrap=chmod \
+    -Wl,--wrap=chown"}"
+: "${CP_HARNESS_LIBS:="-lpthread"}"
+
+export CFLAGS="${CP_HARNESS_CFLAGS} ${CP_HARNESS_EXTRA_CFLAGS}"
+export CXXFLAGS="${CP_HARNESS_CXXFLAGS} ${CP_HARNESS_EXTRA_CXXFLAGS}"
+export LDFLAGS="${CP_HARNESS_LDFLAGS} ${CP_HARNESS_EXTRA_LDFLAGS}"
+export LIBS="${CP_HARNESS_LIBS} ${CP_HARNESS_EXTRA_LIBS}"
+
+rsync --archive --delete ${SRC}/nginx/ ${HARNESS_BLD_DIR}
+
+## Add a line for the build harnesses
+sed ':a;N;$!ba;s/auto\/make\n/auto\/make\n. auto\/make_harnesses\n/g' ${SRC}/nginx/auto/configure > ${HARNESS_BLD_DIR}/auto/configure
+
+chmod +x ${HARNESS_BLD_DIR}/auto/configure
+
+cp ${SRC}/harnesses/make_harnesses ${HARNESS_BLD_DIR}/auto/make_harnesses
+mkdir -p ${HARNESS_BLD_DIR}/src/harnesses
+cp -r ${SRC}/harnesses/*.cc ${HARNESS_BLD_DIR}/src/harnesses
+sed -i 's/main(/fuzz_without_main(/g' ${HARNESS_BLD_DIR}/src/core/nginx.c
+
+cd ${HARNESS_BLD_DIR}
+
+./auto/configure \
+    --with-ld-opt="${LDFLAGS} ${LIBS}"\
+    --with-cc-opt="${CFLAGS}" \
+    --with-mail \
+    --with-http_ssl_module \
+    --with-http_realip_module \
+    --with-http_addition_module \
+    --with-http_sub_module \
+    --with-http_dav_module \
+    --with-http_flv_module \
+    --with-http_mp4_module \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_auth_request_module \
+    --with-http_random_index_module \
+    --with-http_secure_link_module \
+    --with-http_degradation_module \
+    --with-http_stub_status_module
+
+${CP_HARNESS_BUILD_PREFIX} make -j${NPROC_VAL} -f objs/Makefile harnesses ${CP_HARNESS_BUILD_SUFFIX}
+
+# restore vars
+export CFLAGS=${_save_CFLAGS}
+export CXXFLAGS=${_save_CXXFLAGS}
+export LDFLAGS=${_save_LDFLAGS}
+export LIBS=${_save_LDFLAGS}
+
+cp objs/*_harness ${OUT}/
+
+# setup CP base binary build
+
+: "${CP_BASE_CFLAGS:="\
+    -O0 \
+    -g \
+"}"
+: "${CP_BASE_CXXFLAGS:="\
+    -O1 \
+    -stdlib=libc++ \
+"}"
+: "${CP_BASE_LDFLAGS:=""}"
+: "${CP_BASE_LIBS:=""}"
+
+export CFLAGS="${CP_BASE_CFLAGS} ${CP_BASE_EXTRA_CFLAGS}"
+export CXXFLAGS="${CP_BASE_CXXFLAGS} ${CP_BASE_EXTRA_CXXFLAGS}"
+export LDFLAGS="${CP_BASE_LDFLAGS} ${CP_BASE_EXTRA_LDFLAGS}"
+export LIBS="${CP_BASE_LIBS} ${CP_BASE_EXTRA_LIBS}"
+
+cd ${SRC}/nginx
+./auto/configure \
+    --with-cc-opt="${CFLAGS}" \
+    --with-ld-opt="${LDFLAGS} ${LIBS}"\
+    --conf-path=/usr/local/nginx/conf/nginx.conf \
+    --pid-path=/usr/local/nginx/nginx.pid \
+    --with-mail \
+    --with-http_ssl_module \
+    --with-http_realip_module \
+    --with-http_addition_module \
+    --with-http_sub_module \
+    --with-http_dav_module \
+    --with-http_flv_module \
+    --with-http_mp4_module \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_auth_request_module \
+    --with-http_random_index_module \
+    --with-http_secure_link_module \
+    --with-http_degradation_module \
+    --with-http_stub_status_module \
+    --with-http_slice_module \
+    --with-stream \
+    --with-pcre \
+    --with-debug
+
+${CP_BASE_BUILD_PREFIX} make -j${NPROC_VAL} ${CP_BASE_BUILD_SUFFIX}
+
+# restore vars
+export CFLAGS=${_save_CFLAGS}
+export CXXFLAGS=${_save_CXXFLAGS}
+export LDFLAGS=${_save_LDFLAGS}
+export LIBS=${_save_LDFLAGS}

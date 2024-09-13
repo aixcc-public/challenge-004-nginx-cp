@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# This performs the CP-specific tests. It may be replaced with a script
+# or binary for a different interpreter. The name MUST NOT change.
+
+set -e
+set -o pipefail
+
+# set parallel value
+: "${NPROC_VAL:=$(nproc)}"
+
+warn() {
+    echo "$*" >&2
+}
+
+die() {
+    warn "$*"
+    exit 1
+}
+
+# copy over private tests if present
+[[ -d /.internal_only ]] && find /.internal_only -type f -name "*.t" -exec cp -f {} ${SRC}/nginx-unit-tests \;
+
+export TEST_NGINX_BINARY="${SRC}/nginx/objs/nginx"
+
+[[ -x ${TEST_NGINX_BINARY} ]] || \
+    die "FAILURE: missing binary: ${TEST_NGINX_BINARY}"
+[[ -d ${SRC}/nginx-unit-tests ]] || \
+    die "FAILURE: missing test directory: ${SRC}/nginx-unit-tests"
+
+# tell the NGINX it needs to handle running as root
+[[ ${EUID} -eq 0 ]] && export TEST_NGINX_GLOBALS="user root;"
+
+# run standard set of tests
+prove -j${NPROC_VAL} $(find ${SRC}/nginx-unit-tests \
+    -type f \
+    ! -name "*LICENSE" \
+    ! -name "*README" \
+    ! -name "*.pm" \
+    ! -name "*.sh" \
+    ! -name "*.pcap" \
+    ! -name "http_resolver.t" \
+    ! -name "http_resolver_ipv4.t" \
+    ! -name "auth_delay.t" \
+    ! -name "proxy_cache_vary.t"
+) || exit 2
+
+# run problematic tests x3, ensure triple failure
+
+PROBLEM_TESTS=(
+    ${SRC}/nginx-unit-tests/http_resolver.t
+    ${SRC}/nginx-unit-tests/http_resolver_ipv4.t
+    ${SRC}/nginx-unit-tests/auth_delay.t
+    ${SRC}/nginx-unit-tests/proxy_cache_vary.t
+)
+
+for pt in "${PROBLEM_TESTS[@]}"; do
+    prove -j${NPROC_VAL} ${pt} ||
+    prove -j${NPROC_VAL} ${pt} ||
+    prove -j${NPROC_VAL} ${pt} || exit 2
+done
